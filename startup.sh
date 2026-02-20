@@ -9,18 +9,11 @@ echo "Starting Sora Automation API..."
 # Ensure videos directory exists
 mkdir -p /app/videos
 
-# Disable screen blanking and DPMS (Power Management) to prevent black screen
-export DISPLAY=:1
-xset s off || true
-xset -dpms || true
-xset s noblank || true
-
-# Wait for Chrome to boot up first
-sleep 10
+# Wait for Chrome to fully boot up first
+sleep 15
 
 # Start FastAPI server in background
-# IMPORTANT: Run from / so Python can resolve "from app.xxx import ..."
-#            (app/ is at /app/, so "from app.models" finds /app/models.py)
+# Run from / so Python can resolve "from app.xxx import ..."
 cd / && nohup python3 -m uvicorn app.main:app \
     --host 0.0.0.0 \
     --port 8000 \
@@ -29,4 +22,3 @@ cd / && nohup python3 -m uvicorn app.main:app \
 
 echo "Sora API started on port 8000"
 echo "Log file: /app/api.log"
-
