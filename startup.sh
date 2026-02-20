@@ -19,7 +19,9 @@ xset s noblank || true
 sleep 10
 
 # Start FastAPI server in background
-cd /app && nohup python3 -m uvicorn main:app \
+# IMPORTANT: Run from / so Python can resolve "from app.xxx import ..."
+#            (app/ is at /app/, so "from app.models" finds /app/models.py)
+cd / && nohup python3 -m uvicorn app.main:app \
     --host 0.0.0.0 \
     --port 8000 \
     --log-level info \
@@ -27,3 +29,4 @@ cd /app && nohup python3 -m uvicorn main:app \
 
 echo "Sora API started on port 8000"
 echo "Log file: /app/api.log"
+
