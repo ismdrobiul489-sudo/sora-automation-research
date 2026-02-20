@@ -1,0 +1,18 @@
+# Environment variables
+.env
+
+# Session data
+data/
+auth_state.json
+
+# Generated videos
+videos/
+app/videos/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
