@@ -21,3 +21,13 @@ MAX_WAIT_TIME = int(os.getenv("MAX_WAIT_TIME", "600"))  # 10 minutes
 
 # Poll interval (seconds)
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "10"))
+
+# === Storage Cleanup Settings ===
+# Auto-delete video file from server after user downloads it (saves storage!)
+AUTO_DELETE_AFTER_DOWNLOAD = os.getenv("AUTO_DELETE_AFTER_DOWNLOAD", "true").lower() == "true"
+
+# Auto-delete videos older than this many hours (0 = disabled)
+VIDEO_MAX_AGE_HOURS = int(os.getenv("VIDEO_MAX_AGE_HOURS", "2"))
+
+# Cleanup check interval in minutes
+CLEANUP_INTERVAL_MINUTES = int(os.getenv("CLEANUP_INTERVAL_MINUTES", "30"))

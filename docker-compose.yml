@@ -36,5 +36,5 @@ services:
       - TITLE=Sora-Automation
       # API Security (optional — leave empty for no auth)
       - API_KEY=${API_KEY:-}
-    shm_size: "2gb"
+    shm_size: "1gb"
     restart: unless-stopped
