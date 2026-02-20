@@ -46,6 +46,7 @@ class SoraEngine:
         self._playwright = None
         self._browser: Optional[Browser] = None
         self._is_connected = False
+        self._lock = asyncio.Semaphore(1)  # Limit to 1 concurrent generation for 1GB RAM stability
 
     async def connect(self) -> bool:
         """Connect to running Chrome via CDP"""
@@ -127,18 +128,20 @@ class SoraEngine:
         if not task:
             return
 
-        page = None
-        try:
-            # 1. Connect to Chrome
-            if not await self.connect():
-                task.status = "failed"
-                task.error = "Failed to connect to Chrome"
-                task.message = task.error
-                return
+        # Use semaphore to ensure only ONE video generates at a time (saves RAM)
+        async with self._lock:
+            page = None
+            try:
+                # 1. Connect to Chrome
+                if not await self.connect():
+                    task.status = "failed"
+                    task.error = "Failed to connect to Chrome"
+                    task.message = task.error
+                    return
 
-            task.status = "running"
-            task.progress = 5.0
-            task.message = "Connected to Chrome"
+                task.status = "running"
+                task.progress = 5.0
+                task.message = "Connected to Chrome"
 
             # 2. Open a new tab (visible in VNC!)
             contexts = self._browser.contexts
@@ -308,6 +311,7 @@ class SoraEngine:
         finally:
             if page:
                 try:
+                    logger.info(f"Closing tab for task {task_id} to save RAM...")
                     await page.close()
                 except Exception:
                     pass
