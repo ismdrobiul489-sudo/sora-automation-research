@@ -121,39 +121,43 @@ CHROME_PASSWORD=${CHROME_PASSWORD}
 API_KEY=${API_KEY}
 ENVEOF
 
-# docker-compose.yml
+# docker-compose.yml (same image as setup_chromium.sh — proven working!)
 cat > docker-compose.yml << 'COMPOSEEOF'
+version: "3.9"
+
 services:
-  sora:
-    build: .
+  chromium:
+    image: lscr.io/linuxserver/chromium:8d3cb5f1-ls129
     container_name: sora-automation
     security_opt:
       - seccomp:unconfined
-    ports:
-      - "4100:3000"
-      - "4101:3001"
-      - "8000:8000"
-    volumes:
-      - ./data:/config
-      - ./videos:/app/videos
     environment:
       - CUSTOM_USER=${CHROME_USER:-admin}
       - PASSWORD=${CHROME_PASSWORD:-changeme}
       - PUID=1000
       - PGID=1000
-      - TZ=America/New_York
+      - TZ=Asia/Kolkata
       - CHROME_CLI=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
-      - API_KEY=${API_KEY:-}
-    shm_size: "2gb"
+    volumes:
+      - ./data:/config
+      - ./videos:/app/videos
+      - ./app:/app
+      - ./requirements.txt:/app/requirements.txt
+      - ./startup.sh:/custom-cont-init.d/99-start-api.sh
+    ports:
+      - 4100:3000
+      - 4101:3001
+      - 8000:8000
+    shm_size: "1gb"
     restart: unless-stopped
 COMPOSEEOF
 
 echo -e "${YELLOW}   .env and docker-compose.yml generated${NC}"
 
 # === Step 8: Build & Start Container ===
-echo -e "${GREEN}[8/9] Building Docker image and starting container...${NC}"
-echo -e "${YELLOW}   (This may take a few minutes on first run — downloading image + building)${NC}"
-sudo docker compose up -d --build
+echo -e "${GREEN}[8/9] Pulling image and starting container...${NC}"
+echo -e "${YELLOW}   (First run may take a few minutes — downloading image + installing Python deps)${NC}"
+sudo docker compose up -d
 
 # === Step 9: Firewall Setup ===
 echo -e "${GREEN}[9/9] Configuring firewall...${NC}"

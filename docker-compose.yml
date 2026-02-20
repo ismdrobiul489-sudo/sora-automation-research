@@ -1,39 +1,34 @@
 # =========================================================
 # Sora Automation — Docker Compose
 # =========================================================
-#
-# Two ports:
-#   4100 -> Chrome Web UI (KasmVNC) — view & login via browser
-#   8000 -> FastAPI REST API — generate/download videos
-#
-# Usage:
-#   cp .env.example .env   # set password
-#   docker-compose up -d   # start!
+# Uses the EXACT same image as setup_chromium.sh (proven working)
+# Our API files are mounted via volumes and auto-started via init script
 # =========================================================
 
+version: "3.9"
+
 services:
-  sora:
-    build: .
+  chromium:
+    image: lscr.io/linuxserver/chromium:8d3cb5f1-ls129
     container_name: sora-automation
     security_opt:
       - seccomp:unconfined
-    ports:
-      - "4100:3000" # Chrome Web UI (KasmVNC)
-      - "4101:3001" # HTTPS VNC (optional)
-      - "8000:8000" # FastAPI API
-    volumes:
-      - ./data:/config # Chrome profile data (persistent)
-      - ./videos:/app/videos # Generated videos
     environment:
-      # Chrome UI login credentials
       - CUSTOM_USER=${CHROME_USER:-admin}
       - PASSWORD=${CHROME_PASSWORD:-changeme}
       - PUID=1000
       - PGID=1000
-      - TZ=America/New_York
-      # Enable CDP for Playwright (connects to same Chrome)
+      - TZ=Asia/Kolkata
       - CHROME_CLI=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
-      # API Security (optional — leave empty for no auth)
-      - API_KEY=${API_KEY:-}
-    shm_size: "2gb"
+    volumes:
+      - ./data:/config
+      - ./videos:/app/videos
+      - ./app:/app
+      - ./requirements.txt:/app/requirements.txt
+      - ./startup.sh:/custom-cont-init.d/99-start-api.sh
+    ports:
+      - 4100:3000
+      - 4101:3001
+      - 8000:8000
+    shm_size: "1gb"
     restart: unless-stopped
