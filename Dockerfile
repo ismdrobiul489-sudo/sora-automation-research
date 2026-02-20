@@ -23,11 +23,11 @@ RUN apt-get update && \
 
 # Install Python dependencies
 COPY requirements.txt /app/requirements.txt
-RUN pip3 install --break-system-packages --no-cache-dir -r /app/requirements.txt
+RUN pip3 install --break-system-packages --no-cache-dir -r /app/requirements.txt \
+    && pip3 install --break-system-packages playwright
 
-# Install Playwright dependencies (Chromium is already present, just need deps)
-RUN pip3 install --break-system-packages playwright && \
-    playwright install-deps chromium
+# Note: We skip 'playwright install-deps chromium' because linuxserver/chromium
+# already has everything needed for the browser to run.
 
 # Copy application code
 COPY app/ /app/
