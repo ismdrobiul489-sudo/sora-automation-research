@@ -143,178 +143,178 @@ class SoraEngine:
                 task.progress = 5.0
                 task.message = "Connected to Chrome"
 
-            # 2. Open a new tab (visible in VNC!)
-            contexts = self._browser.contexts
-            if not contexts:
-                context = await self._browser.new_context()
-            else:
-                context = contexts[0]
+                # 2. Open a new tab (visible in VNC!)
+                contexts = self._browser.contexts
+                if not contexts:
+                    context = await self._browser.new_context()
+                else:
+                    context = contexts[0]
 
-            page = await context.new_page()
-            task.progress = 10.0
-            task.message = "Opening Sora..."
+                page = await context.new_page()
+                task.progress = 10.0
+                task.message = "Opening Sora..."
 
-            # 3. Navigate to Sora
-            logger.info(f"Opening Sora: {SORA_URL}")
-            await page.goto(SORA_URL, wait_until="domcontentloaded", timeout=60000)
-            await page.wait_for_timeout(3000)
+                # 3. Navigate to Sora
+                logger.info(f"Opening Sora: {SORA_URL}")
+                await page.goto(SORA_URL, wait_until="domcontentloaded", timeout=60000)
+                await page.wait_for_timeout(3000)
 
-            # Check login status
-            if "login" in page.url.lower() or "auth" in page.url.lower():
-                task.status = "failed"
-                task.error = "Not logged in to Sora! Please login via Chrome UI first."
-                task.message = task.error
-                logger.error(f"Error: {task.error}")
-                await page.close()
-                return
+                # Check login status
+                if "login" in page.url.lower() or "auth" in page.url.lower():
+                    task.status = "failed"
+                    task.error = "Not logged in to Sora! Please login via Chrome UI first."
+                    task.message = task.error
+                    logger.error(f"Error: {task.error}")
+                    await page.close()
+                    return
 
-            task.progress = 20.0
-            task.message = "Sora loaded, typing prompt..."
+                task.progress = 20.0
+                task.message = "Sora loaded, typing prompt..."
 
-            # 4. Find prompt textarea and type
-            logger.info(f"Typing prompt: '{task.prompt[:50]}...'")
-            textarea = page.locator(
-                'textarea[placeholder*="Describe"], '
-                'textarea[placeholder*="What"], '
-                'textarea[placeholder*="prompt"], '
-                'textarea'
-            ).first
-            await textarea.wait_for(state="visible", timeout=15000)
-            await textarea.click()
-            await textarea.fill(task.prompt)
-            await page.wait_for_timeout(1000)
+                # 4. Find prompt textarea and type
+                logger.info(f"Typing prompt: '{task.prompt[:50]}...'")
+                textarea = page.locator(
+                    'textarea[placeholder*="Describe"], '
+                    'textarea[placeholder*="What"], '
+                    'textarea[placeholder*="prompt"], '
+                    'textarea'
+                ).first
+                await textarea.wait_for(state="visible", timeout=15000)
+                await textarea.click()
+                await textarea.fill(task.prompt)
+                await page.wait_for_timeout(1000)
 
-            task.progress = 30.0
-            task.message = "Prompt entered, clicking Generate..."
+                task.progress = 30.0
+                task.message = "Prompt entered, clicking Generate..."
 
-            # 5. Click Generate/Create button
-            logger.info("Clicking Generate button...")
-            create_btn = page.locator(
-                'button:has-text("Create"), '
-                'button:has-text("Generate"), '
-                'button[type="submit"]'
-            ).first
-            await create_btn.wait_for(state="visible", timeout=10000)
-            await create_btn.click()
+                # 5. Click Generate/Create button
+                logger.info("Clicking Generate button...")
+                create_btn = page.locator(
+                    'button:has-text("Create"), '
+                    'button:has-text("Generate"), '
+                    'button[type="submit"]'
+                ).first
+                await create_btn.wait_for(state="visible", timeout=10000)
+                await create_btn.click()
 
-            task.progress = 35.0
-            task.message = "Generation started! Video is being created..."
-            logger.info("Video generation in progress...")
+                task.progress = 35.0
+                task.message = "Generation started! Video is being created..."
+                logger.info("Video generation in progress...")
 
-            # 6. Wait for video to be ready
-            await page.wait_for_timeout(5000)  # initial wait
+                # 6. Wait for video to be ready
+                await page.wait_for_timeout(5000)  # initial wait
 
-            start_time = time.time()
-            video_ready = False
+                start_time = time.time()
+                video_ready = False
 
-            while (time.time() - start_time) < MAX_WAIT_TIME:
-                elapsed = time.time() - start_time
-                # estimated progress (35% to 90% over MAX_WAIT_TIME)
-                task.progress = min(90.0, 35.0 + (elapsed / MAX_WAIT_TIME) * 55.0)
+                while (time.time() - start_time) < MAX_WAIT_TIME:
+                    elapsed = time.time() - start_time
+                    # estimated progress (35% to 90% over MAX_WAIT_TIME)
+                    task.progress = min(90.0, 35.0 + (elapsed / MAX_WAIT_TIME) * 55.0)
 
-                # Check for Download button or video element
-                download_btn = page.locator(
-                    'button:has-text("Download"), '
-                    'a:has-text("Download"), '
-                    'button[aria-label*="download" i]'
-                )
-                if await download_btn.count() > 0:
-                    logger.info("Video is ready!")
-                    video_ready = True
-                    break
-
-                # Video element check
-                video_el = page.locator('video source, video[src]')
-                if await video_el.count() > 0:
-                    logger.info("Video element found!")
-                    video_ready = True
-                    break
-
-                # Progress text check (Sora UI shows percentage)
-                progress_text = await page.locator('[class*="progress"], [role="progressbar"]').all_text_contents()
-                if progress_text:
-                    task.message = f"Generating video... {', '.join(progress_text)}"
-
-                await page.wait_for_timeout(POLL_INTERVAL * 1000)
-
-            if not video_ready:
-                task.status = "failed"
-                task.error = f"Timeout exceeded ({MAX_WAIT_TIME}s)"
-                task.message = task.error
-                # Debug screenshot
-                await page.screenshot(path=f"/app/videos/{task_id}_timeout.png")
-                await page.close()
-                return
-
-            # 7. Download the video
-            task.progress = 90.0
-            task.status = "downloading"
-            task.message = "Downloading video..."
-
-            os.makedirs(VIDEO_DIR, exist_ok=True)
-            video_path = os.path.join(VIDEO_DIR, f"{task_id}.mp4")
-
-            # Method A: Click download button and intercept file download
-            try:
-                async with page.expect_download(timeout=60000) as download_info:
+                    # Check for Download button or video element
                     download_btn = page.locator(
                         'button:has-text("Download"), '
                         'a:has-text("Download"), '
                         'button[aria-label*="download" i]'
-                    ).first
-                    await download_btn.click()
-                download = await download_info.value
-                await download.save_as(video_path)
-                logger.info(f"Video saved: {video_path}")
-            except Exception as dl_err:
-                logger.warning(f"Download button failed, trying video src: {dl_err}")
-                # Method B: Extract video URL from video element
-                try:
-                    video_src = await page.locator('video source').first.get_attribute('src')
-                    if not video_src:
-                        video_src = await page.locator('video').first.get_attribute('src')
+                    )
+                    if await download_btn.count() > 0:
+                        logger.info("Video is ready!")
+                        video_ready = True
+                        break
 
-                    if video_src:
-                        task.video_url = video_src
-                        # Download via Playwright
-                        response = await page.request.get(video_src)
-                        with open(video_path, 'wb') as f:
-                            f.write(await response.body())
-                        logger.info(f"Video downloaded from src: {video_path}")
-                    else:
-                        raise Exception("Video URL not found")
-                except Exception as src_err:
+                    # Video element check
+                    video_el = page.locator('video source, video[src]')
+                    if await video_el.count() > 0:
+                        logger.info("Video element found!")
+                        video_ready = True
+                        break
+
+                    # Progress text check (Sora UI shows percentage)
+                    progress_text = await page.locator('[class*="progress"], [role="progressbar"]').all_text_contents()
+                    if progress_text:
+                        task.message = f"Generating video... {', '.join(progress_text)}"
+
+                    await page.wait_for_timeout(POLL_INTERVAL * 1000)
+
+                if not video_ready:
                     task.status = "failed"
-                    task.error = f"Failed to download video: {src_err}"
+                    task.error = f"Timeout exceeded ({MAX_WAIT_TIME}s)"
                     task.message = task.error
-                    await page.screenshot(path=f"/app/videos/{task_id}_dl_error.png")
+                    # Debug screenshot
+                    await page.screenshot(path=f"/app/videos/{task_id}_timeout.png")
                     await page.close()
                     return
 
-            # 8. Success!
-            task.video_path = video_path
-            task.status = "succeeded"
-            task.progress = 100.0
-            task.message = "Video generation complete!"
-            logger.info(f"Task {task_id} completed successfully!")
+                # 7. Download the video
+                task.progress = 90.0
+                task.status = "downloading"
+                task.message = "Downloading video..."
 
-        except Exception as e:
-            logger.error(f"Generation error: {e}")
-            task.status = "failed"
-            task.error = str(e)
-            task.message = f"Error: {e}"
-            if page:
+                os.makedirs(VIDEO_DIR, exist_ok=True)
+                video_path = os.path.join(VIDEO_DIR, f"{task_id}.mp4")
+
+                # Method A: Click download button and intercept file download
                 try:
-                    await page.screenshot(path=f"/app/videos/{task_id}_error.png")
-                except Exception:
-                    pass
-        finally:
-            if page:
-                try:
-                    logger.info(f"Closing tab for task {task_id} to save RAM...")
-                    await page.close()
-                except Exception:
-                    pass
+                    async with page.expect_download(timeout=60000) as download_info:
+                        download_btn = page.locator(
+                            'button:has-text("Download"), '
+                            'a:has-text("Download"), '
+                            'button[aria-label*="download" i]'
+                        ).first
+                        await download_btn.click()
+                    download = await download_info.value
+                    await download.save_as(video_path)
+                    logger.info(f"Video saved: {video_path}")
+                except Exception as dl_err:
+                    logger.warning(f"Download button failed, trying video src: {dl_err}")
+                    # Method B: Extract video URL from video element
+                    try:
+                        video_src = await page.locator('video source').first.get_attribute('src')
+                        if not video_src:
+                            video_src = await page.locator('video').first.get_attribute('src')
+
+                        if video_src:
+                            task.video_url = video_src
+                            # Download via Playwright
+                            response = await page.request.get(video_src)
+                            with open(video_path, 'wb') as f:
+                                f.write(await response.body())
+                            logger.info(f"Video downloaded from src: {video_path}")
+                        else:
+                            raise Exception("Video URL not found")
+                    except Exception as src_err:
+                        task.status = "failed"
+                        task.error = f"Failed to download video: {src_err}"
+                        task.message = task.error
+                        await page.screenshot(path=f"/app/videos/{task_id}_dl_error.png")
+                        await page.close()
+                        return
+
+                # 8. Success!
+                task.video_path = video_path
+                task.status = "succeeded"
+                task.progress = 100.0
+                task.message = "Video generation complete!"
+                logger.info(f"Task {task_id} completed successfully!")
+
+            except Exception as e:
+                logger.error(f"Generation error: {e}")
+                task.status = "failed"
+                task.error = str(e)
+                task.message = f"Error: {e}"
+                if page:
+                    try:
+                        await page.screenshot(path=f"/app/videos/{task_id}_error.png")
+                    except Exception:
+                        pass
+            finally:
+                if page:
+                    try:
+                        logger.info(f"Closing tab for task {task_id} to save RAM...")
+                        await page.close()
+                    except Exception:
+                        pass
 
 
 # Singleton engine instance
