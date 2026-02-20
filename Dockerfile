@@ -11,7 +11,7 @@
 # Playwright connects to the same Chrome via CDP
 # =========================================================
 
-FROM lscr.io/linuxserver/chromium:latest
+FROM lscr.io/linuxserver/chromium:8d3cb5f1-ls129
 
 # Install Python 3 + pip
 RUN apt-get update && \
