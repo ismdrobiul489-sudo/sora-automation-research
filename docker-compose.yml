@@ -32,7 +32,8 @@ services:
       - PGID=1000
       - TZ=America/New_York
       # Enable CDP for Playwright (connects to same Chrome)
-      - CHROME_CLI=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
+      - CHROME_CLI=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --no-sandbox
+      - TITLE=Sora-Automation
       # API Security (optional — leave empty for no auth)
       - API_KEY=${API_KEY:-}
     shm_size: "2gb"

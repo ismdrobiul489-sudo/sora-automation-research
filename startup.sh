@@ -9,6 +9,12 @@ echo "Starting Sora Automation API..."
 # Ensure videos directory exists
 mkdir -p /app/videos
 
+# Disable screen blanking and DPMS (Power Management) to prevent black screen
+export DISPLAY=:1
+xset s off || true
+xset -dpms || true
+xset s noblank || true
+
 # Wait for Chrome to boot up first
 sleep 10
 
